@@ -568,7 +568,7 @@
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, off, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB-h1O-c5iNOzBNoBW9R-YZVnWu7OgwH3E",
@@ -654,8 +654,20 @@ function generateId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-initEmptyState();
-subscribeSession(generateId());
+const _savedSession = localStorage.getItem('artale_session');
+const _savedRoom = localStorage.getItem('artale_room');
+
+if (_savedSession && _savedRoom) {
+  myRoom = _savedRoom;
+  initEmptyState();
+  subscribeSession(_savedSession);
+  const _roomRef = ref(db, `sessions/${_savedSession}/rooms/${_savedRoom}`);
+  set(_roomRef, true).then(() => onDisconnect(_roomRef).remove());
+  document.getElementById('roomOverlay').classList.add('hidden');
+} else {
+  initEmptyState();
+  subscribeSession(generateId());
+}
 
 window.copyCode = () => {
   navigator.clipboard.writeText(sessionId).then(() => {
@@ -690,6 +702,8 @@ window.joinSession = () => {
 
   // 不跳頁，直接切換 session
   myRoom = null;
+  localStorage.removeItem('artale_session');
+  localStorage.removeItem('artale_room');
   initEmptyState();
   renderGrid();
   subscribeSession(code);
@@ -704,8 +718,12 @@ window.selectRoom = async (room) => {
   if (occupiedRooms[room] && room !== myRoom) return;
 
   myRoom = room;
-  // 寫入 Firebase 標記此房間已佔用
-  await set(ref(db, `sessions/${sessionId}/rooms/${room}`), true);
+  localStorage.setItem('artale_session', sessionId);
+  localStorage.setItem('artale_room', room);
+
+  const roomRef = ref(db, `sessions/${sessionId}/rooms/${room}`);
+  await set(roomRef, true);
+  onDisconnect(roomRef).remove();
 
   document.getElementById('roomOverlay').classList.add('hidden');
   renderGrid();

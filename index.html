@@ -541,6 +541,19 @@
   </div>
 </div>
 
+<!-- Access code overlay -->
+<div class="overlay" id="accessOverlay">
+  <div class="overlay-box">
+    <h2>輸入存取碼</h2>
+    <p>此工具為私人使用<br>請輸入存取碼以繼續</p>
+    <div class="join-row">
+      <input type="text" id="accessInput" class="join-input" placeholder="輸入存取碼" maxlength="20" />
+      <button class="join-btn" onclick="verifyAccess()">確認</button>
+    </div>
+    <div id="accessError" class="join-error hidden">存取碼不正確</div>
+  </div>
+</div>
+
 <!-- Room select overlay -->
 <div class="overlay" id="roomOverlay">
   <div class="overlay-box">
@@ -568,7 +581,7 @@
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, off, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, get, onValue, off, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB-h1O-c5iNOzBNoBW9R-YZVnWu7OgwH3E",
@@ -654,20 +667,50 @@ function generateId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+const _savedAccess = localStorage.getItem('artale_access');
 const _savedSession = localStorage.getItem('artale_session');
 const _savedRoom = localStorage.getItem('artale_room');
 
-if (_savedSession && _savedRoom) {
+if (!_savedAccess) {
+  // 未驗證：只顯示存取碼 overlay
+  initEmptyState();
+  subscribeSession(generateId());
+  document.getElementById('roomOverlay').classList.add('hidden');
+} else if (_savedSession && _savedRoom) {
+  // 已驗證 + 有上次的 session/room：自動重連
   myRoom = _savedRoom;
   initEmptyState();
   subscribeSession(_savedSession);
   const _roomRef = ref(db, `sessions/${_savedSession}/rooms/${_savedRoom}`);
   set(_roomRef, true).then(() => onDisconnect(_roomRef).remove());
+  document.getElementById('accessOverlay').classList.add('hidden');
   document.getElementById('roomOverlay').classList.add('hidden');
 } else {
+  // 已驗證，但沒有 session：正常進入選房
   initEmptyState();
   subscribeSession(generateId());
+  document.getElementById('accessOverlay').classList.add('hidden');
 }
+
+window.verifyAccess = async () => {
+  const input = document.getElementById('accessInput');
+  const code = input.value.trim().toUpperCase();
+  const errEl = document.getElementById('accessError');
+  if (!code) return;
+  const snap = await get(ref(db, `access_codes/${code}`));
+  if (snap.exists()) {
+    localStorage.setItem('artale_access', code);
+    document.getElementById('accessOverlay').classList.add('hidden');
+    document.getElementById('roomOverlay').classList.remove('hidden');
+  } else {
+    errEl.classList.remove('hidden');
+    input.focus();
+  }
+};
+
+document.getElementById('accessInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') verifyAccess();
+});
 
 window.copyCode = () => {
   navigator.clipboard.writeText(sessionId).then(() => {

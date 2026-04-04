@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>羅茱踏板工具</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111520;
+    --border: #1e2535;
+    --accent: #4f8ef7;
+    --accent2: #f7c04f;
+    --text: #dce6f5;
+    --muted: #4a5570;
+    --room-a: #4f8ef7;
+    --room-b: #f7c04f;
+    --room-c: #4ff7a0;
+    --room-d: #f74f7e;
+    --correct: #4ff7a0;
+    --taken: #f74f7e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(79,142,247,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,142,247,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 900px;
+    padding: 24px 16px 48px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .title-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* Status bar */
+  .status-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+    margin-right: 8px;
+    transition: background 0.3s;
+  }
+  .status-dot.online { background: var(--correct); box-shadow: 0 0 6px var(--correct); }
+
+  .status-left { display: flex; align-items: center; color: var(--muted); }
+  .status-right { display: flex; gap: 12px; }
+
+  /* Room selector */
+  .room-select-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .section-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .room-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .room-btn {
+    background: transparent;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 8px;
+    cursor: pointer;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--muted);
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .room-btn .room-sub {
+    font-size: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-weight: 400;
+    letter-spacing: 1px;
+  }
+
+  .room-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .room-btn.selected-a { border-color: var(--room-a); color: var(--room-a); background: rgba(79,142,247,0.1); }
+  .room-btn.selected-b { border-color: var(--room-b); color: var(--room-b); background: rgba(247,192,79,0.1); }
+  .room-btn.selected-c { border-color: var(--room-c); color: var(--room-c); background: rgba(79,247,160,0.1); }
+  .room-btn.selected-d { border-color: var(--room-d); color: var(--room-d); background: rgba(247,79,126,0.1); }
+  .room-btn.taken { opacity: 0.4; cursor: not-allowed; }
+
+  /* Main grid */
+  .floor-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .floor-row {
+    display: grid;
+    grid-template-columns: 48px 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .floor-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .floor-label .floor-num {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--text);
+    display: block;
+  }
+
+  .platform-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-height: 80px;
+  }
+
+  .platform-cell .room-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    opacity: 0.6;
+  }
+
+  .platform-cell.mine { border-color: rgba(79,142,247,0.3); }
+
+  .platform-btns {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+    width: 100%;
+  }
+
+  .platform-num-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 5px 0;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .platform-num-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .platform-num-btn.is-correct {
+    background: rgba(79,247,160,0.15);
+    border-color: var(--correct);
+    color: var(--correct);
+    font-weight: 900;
+  }
+
+  .platform-num-btn.is-taken {
+    background: rgba(247,79,126,0.08);
+    border-color: rgba(247,79,126,0.3);
+    color: var(--taken);
+    opacity: 0.5;
+    cursor: not-allowed;
+    text-decoration: line-through;
+  }
+
+  .platform-num-btn:disabled:not(.is-correct):not(.is-taken) {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* Room color accents */
+  .cell-a .room-tag { color: var(--room-a); }
+  .cell-b .room-tag { color: var(--room-b); }
+  .cell-c .room-tag { color: var(--room-c); }
+  .cell-d .room-tag { color: var(--room-d); }
+
+  .cell-a.mine { border-color: rgba(79,142,247,0.5); background: rgba(79,142,247,0.04); }
+  .cell-b.mine { border-color: rgba(247,192,79,0.5); background: rgba(247,192,79,0.04); }
+  .cell-c.mine { border-color: rgba(79,247,160,0.5); background: rgba(79,247,160,0.04); }
+  .cell-d.mine { border-color: rgba(247,79,126,0.5); background: rgba(247,79,126,0.04); }
+
+  /* Other cell (not mine, read-only) */
+  .other-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 22px;
+    font-weight: bold;
+    color: var(--muted);
+  }
+
+  .other-display.confirmed-a { color: var(--room-a); }
+  .other-display.confirmed-b { color: var(--room-b); }
+  .other-display.confirmed-c { color: var(--room-c); }
+  .other-display.confirmed-d { color: var(--room-d); }
+  .other-display.empty { color: var(--border); font-size: 14px; }
+
+  /* Floor header */
+  .floor-header {
+    display: grid;
+    grid-template-columns: 48px 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 0 4px;
+  }
+
+  .floor-header-cell {
+    text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 6px;
+    border-radius: 6px;
+  }
+  .fh-a { color: var(--room-a); background: rgba(79,142,247,0.08); }
+  .fh-b { color: var(--room-b); background: rgba(247,192,79,0.08); }
+  .fh-c { color: var(--room-c); background: rgba(79,247,160,0.08); }
+  .fh-d { color: var(--room-d); background: rgba(247,79,126,0.08); }
+
+  /* Reset button */
+  .actions {
+    margin-top: 24px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .btn-reset {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-reset:hover { border-color: var(--taken); color: var(--taken); }
+
+  /* Overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,12,16,0.92);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .overlay-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px;
+    max-width: 360px;
+    width: 90%;
+    text-align: center;
+  }
+
+  .overlay-box h2 {
+    font-size: 20px;
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+
+  .overlay-box p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 24px;
+    line-height: 1.7;
+  }
+
+  .overlay-room-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .overlay-room-btn {
+    background: transparent;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 12px;
+    cursor: pointer;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .overlay-room-btn .sub {
+    font-size: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-weight: 400;
+    letter-spacing: 1px;
+  }
+
+  .overlay-room-btn:hover { transform: scale(1.03); }
+  .overlay-room-btn.btn-a { border-color: var(--room-a); color: var(--room-a); }
+  .overlay-room-btn.btn-a:hover { background: rgba(79,142,247,0.1); }
+  .overlay-room-btn.btn-b { border-color: var(--room-b); color: var(--room-b); }
+  .overlay-room-btn.btn-b:hover { background: rgba(247,192,79,0.1); }
+  .overlay-room-btn.btn-c { border-color: var(--room-c); color: var(--room-c); }
+  .overlay-room-btn.btn-c:hover { background: rgba(79,247,160,0.1); }
+  .overlay-room-btn.btn-d { border-color: var(--room-d); color: var(--room-d); }
+  .overlay-room-btn.btn-d:hover { background: rgba(247,79,126,0.1); }
+  .overlay-room-btn.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+  .session-info {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    word-break: break-all;
+    line-height: 1.8;
+  }
+
+  .session-info a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .copy-btn {
+    display: inline-block;
+    margin-top: 8px;
+    background: rgba(79,142,247,0.1);
+    border: 1px solid rgba(79,142,247,0.3);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 5px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .copy-btn:hover { background: rgba(79,142,247,0.2); }
+
+  .join-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .join-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  .join-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .join-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    letter-spacing: 3px;
+    padding: 9px 12px;
+    outline: none;
+    text-transform: uppercase;
+    transition: border-color 0.2s;
+  }
+  .join-input:focus { border-color: var(--accent); }
+  .join-input::placeholder { letter-spacing: 1px; font-size: 12px; color: var(--muted); }
+
+  .join-btn {
+    background: rgba(79,142,247,0.1);
+    border: 1px solid rgba(79,142,247,0.4);
+    border-radius: 7px;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .join-btn:hover { background: rgba(79,142,247,0.2); }
+
+  .join-error {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--taken);
+    margin-top: 6px;
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="title-label">Artale · 羅密歐與茱麗葉</div>
+    <h1>第六關 <span>踏板工具</span></h1>
+    <div class="subtitle">FLOOR 6 — PLATFORM COORDINATION</div>
+  </header>
+
+  <div class="status-bar">
+    <div class="status-left">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">連線中...</span>
+    </div>
+    <div class="status-right">
+      <span id="roomCount" style="color:var(--muted)">0/4 房間</span>
+    </div>
+  </div>
+
+  <div class="floor-header">
+    <div></div>
+    <div class="floor-header-cell fh-a">甲</div>
+    <div class="floor-header-cell fh-b">乙</div>
+    <div class="floor-header-cell fh-c">丙</div>
+    <div class="floor-header-cell fh-d">丁</div>
+  </div>
+
+  <div class="floor-grid" id="floorGrid"></div>
+
+  <div class="actions">
+    <button class="btn-reset" onclick="confirmReset()">⟳ 重置這場</button>
+  </div>
+</div>
+
+<!-- Room select overlay -->
+<div class="overlay" id="roomOverlay">
+  <div class="overlay-box">
+    <h2>選擇你的房間</h2>
+    <p>每人進入不同房間<br>請選擇你負責的那一間</p>
+    <div class="overlay-room-btns">
+      <button class="overlay-room-btn btn-a" onclick="selectRoom('a')">甲<span class="sub">ROOM A</span></button>
+      <button class="overlay-room-btn btn-b" onclick="selectRoom('b')">乙<span class="sub">ROOM B</span></button>
+      <button class="overlay-room-btn btn-c" onclick="selectRoom('c')">丙<span class="sub">ROOM C</span></button>
+      <button class="overlay-room-btn btn-d" onclick="selectRoom('d')">丁<span class="sub">ROOM D</span></button>
+    </div>
+    <div class="session-info" id="sessionInfo"></div>
+
+    <div class="join-section">
+      <div class="join-label">收到隊友的場次代碼？</div>
+      <div class="join-row">
+        <input type="text" id="joinInput" class="join-input" placeholder="貼上代碼，例如 UKJ01F" maxlength="10" />
+        <button class="join-btn" onclick="joinSession()">加入</button>
+      </div>
+      <div id="joinError" class="join-error hidden">代碼格式不正確</div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB-h1O-c5iNOzBNoBW9R-YZVnWu7OgwH3E",
+  authDomain: "artale-rjpq-6b73d.firebaseapp.com",
+  databaseURL: "https://artale-rjpq-6b73d-default-rtdb.firebaseio.com",
+  projectId: "artale-rjpq-6b73d",
+  storageBucket: "artale-rjpq-6b73d.firebasestorage.app",
+  messagingSenderId: "607708622638",
+  appId: "1:607708622638:web:7f0e9d86ecb626ee5fd4bf",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const ROOMS = ['a','b','c','d'];
+const ROOM_NAMES = { a:'甲', b:'乙', c:'丙', d:'丁' };
+const FLOORS = 10;
+
+let myRoom = null;
+let gameState = {};
+let occupiedRooms = {}; // { a: true, b: true, ... }
+let sessionId = null;
+let currentSessionRef = null;
+
+function initEmptyState() {
+  gameState = {};
+  occupiedRooms = {};
+  for (let f = 1; f <= FLOORS; f++) {
+    gameState[f] = { a: null, b: null, c: null, d: null };
+  }
+}
+
+function updateRoomButtons() {
+  ROOMS.forEach(r => {
+    const btn = document.querySelector(`.overlay-room-btn.btn-${r}`);
+    if (!btn) return;
+    if (occupiedRooms[r] && r !== myRoom) {
+      btn.classList.add('disabled');
+      btn.title = '此房間已有人進入';
+    } else {
+      btn.classList.remove('disabled');
+      btn.title = '';
+    }
+  });
+}
+
+function subscribeSession(id) {
+  if (currentSessionRef) off(currentSessionRef);
+
+  sessionId = id;
+  currentSessionRef = ref(db, `sessions/${sessionId}`);
+
+  document.getElementById('statusDot').classList.remove('online');
+  document.getElementById('statusText').textContent = '連線中...';
+
+  onValue(currentSessionRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.floors) {
+      gameState = data.floors;
+    } else {
+      initEmptyState();
+    }
+    // 更新房間佔用狀態
+    occupiedRooms = (data && data.rooms) ? data.rooms : {};
+    updateRoomButtons();
+
+    document.getElementById('statusDot').classList.add('online');
+    document.getElementById('statusText').textContent = `已連線 · 場次 ${sessionId}`;
+    renderGrid();
+    updateStatus(data);
+  }, (err) => {
+    document.getElementById('statusText').textContent = '連線失敗';
+  });
+
+  document.getElementById('sessionInfo').innerHTML = `
+    場次代碼：<strong style="color:var(--accent);font-size:18px;letter-spacing:3px">${sessionId}</strong><br>
+    <button class="copy-btn" onclick="copyCode()">複製代碼</button>
+  `;
+}
+
+// 產生初始 session（不依賴 URL）
+function generateId() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+initEmptyState();
+subscribeSession(generateId());
+
+window.copyCode = () => {
+  navigator.clipboard.writeText(sessionId).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '已複製！';
+    setTimeout(() => btn.textContent = '複製代碼', 2000);
+  });
+};
+
+function updateStatus(data) {
+  const activeRooms = new Set();
+  if (data && data.floors) {
+    Object.values(data.floors).forEach(f => {
+      ROOMS.forEach(r => { if (f[r] !== null) activeRooms.add(r); });
+    });
+  }
+  document.getElementById('roomCount').textContent = `${activeRooms.size}/4 房間`;
+}
+
+window.joinSession = () => {
+  const input = document.getElementById('joinInput');
+  const code = input.value.trim().toUpperCase();
+  const errEl = document.getElementById('joinError');
+
+  if (!/^[A-Z0-9]{4,10}$/.test(code)) {
+    errEl.classList.remove('hidden');
+    input.focus();
+    return;
+  }
+  errEl.classList.add('hidden');
+  input.value = '';
+
+  // 不跳頁，直接切換 session
+  myRoom = null;
+  initEmptyState();
+  renderGrid();
+  subscribeSession(code);
+};
+
+document.getElementById('joinInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') joinSession();
+});
+
+window.selectRoom = async (room) => {
+  // 擋下已被佔用的房間（自己已選的除外）
+  if (occupiedRooms[room] && room !== myRoom) return;
+
+  myRoom = room;
+  // 寫入 Firebase 標記此房間已佔用
+  await set(ref(db, `sessions/${sessionId}/rooms/${room}`), true);
+
+  document.getElementById('roomOverlay').classList.add('hidden');
+  renderGrid();
+};
+
+function renderGrid() {
+  const grid = document.getElementById('floorGrid');
+  let html = '';
+  for (let f = FLOORS; f >= 1; f--) {
+    const floorData = gameState[f] || { a:null, b:null, c:null, d:null };
+    const taken = new Set();
+    ROOMS.forEach(r => { if (floorData[r] !== null) taken.add(floorData[r]); });
+
+    html += `<div class="floor-row">`;
+    html += `<div class="floor-label"><span class="floor-num">${f}</span>層</div>`;
+
+    ROOMS.forEach(r => {
+      const isMe = (r === myRoom);
+      const val = floorData[r];
+      const colorClass = `cell-${r}`;
+
+      if (isMe) {
+        html += `<div class="platform-cell ${colorClass} mine">`;
+        html += `<span class="room-tag">${ROOM_NAMES[r]}</span>`;
+        html += `<div class="platform-btns">`;
+        for (let n = 1; n <= 4; n++) {
+          const isCorrect = (val === n);
+          const isTaken = !isCorrect && taken.has(n);
+          let cls = isCorrect ? 'is-correct' : isTaken ? 'is-taken' : '';
+          const disabled = isTaken ? 'disabled' : '';
+          html += `<button class="platform-num-btn ${cls}" ${disabled}
+            onclick="setPlatform(${f},'${r}',${isCorrect ? 'null' : n})">${n}</button>`;
+        }
+        html += `</div></div>`;
+      } else {
+        let dispClass = 'empty';
+        let dispText = '—';
+        if (val !== null && val !== undefined) {
+          dispClass = `confirmed-${r}`;
+          dispText = val;
+        }
+        html += `<div class="platform-cell ${colorClass}">`;
+        html += `<span class="room-tag">${ROOM_NAMES[r]}</span>`;
+        html += `<div class="other-display ${dispClass}">${dispText}</div>`;
+        html += `</div>`;
+      }
+    });
+
+    html += `</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+window.setPlatform = async (floor, room, value) => {
+  if (!myRoom || room !== myRoom) return;
+  await set(ref(db, `sessions/${sessionId}/floors/${floor}/${room}`), value);
+};
+
+window.confirmReset = async () => {
+  if (confirm('確定要重置這場的所有資料嗎？')) {
+    const empty = {};
+    for (let f = 1; f <= FLOORS; f++) {
+      empty[f] = { a:null, b:null, c:null, d:null };
+    }
+    await set(ref(db, `sessions/${sessionId}/floors`), empty);
+    gameState = empty;
+    renderGrid();
+  }
+};
+
+renderGrid();
+</script>
+
+</body>
+</html>

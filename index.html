@@ -566,6 +566,62 @@
 
   .container.has-seq-bar { padding-top: 60px; }
 
+  /* Light theme */
+  body.light {
+    --bg: #f0f4fb;
+    --surface: #ffffff;
+    --border: #ccd6ee;
+    --accent: #2b6de0;
+    --accent2: #b07800;
+    --text: #1a2035;
+    --muted: #7a8aaa;
+    --room-a: #1e5fd4;
+    --room-b: #a06800;
+    --room-c: #0a8f50;
+    --room-d: #c0184e;
+    --correct: #0a8f50;
+    --taken: #c0184e;
+  }
+
+  body.light::before {
+    background-image:
+      linear-gradient(rgba(30,95,212,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,95,212,0.06) 1px, transparent 1px);
+  }
+
+  body.light .seq-bar {
+    background: rgba(240, 244, 251, 0.95);
+  }
+
+  body.light .overlay {
+    background: rgba(220, 228, 245, 0.92);
+  }
+
+  body.light .platform-num-btn.is-correct {
+    background: rgba(10,143,80,0.12);
+  }
+
+  body.light .platform-num-btn.is-taken {
+    background: rgba(192,24,78,0.08);
+    border-color: rgba(192,24,78,0.3);
+  }
+
+  /* Theme toggle button */
+  .theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
   /* Copy link button in status bar */
   .copy-link-btn {
     background: transparent;
@@ -607,6 +663,7 @@
     <div class="status-right">
       <button class="copy-link-btn hidden" id="copyLinkBtn" onclick="copyLink()">⎘ 複製連結</button>
       <span id="roomCount" style="color:var(--muted)">0/4 房間</span>
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">亮色</button>
     </div>
   </div>
 
@@ -699,6 +756,20 @@ function setSessionInUrl(id) {
   url.searchParams.set('s', id);
   window.history.replaceState({}, '', url);
 }
+
+function applyTheme(isLight) {
+  document.body.classList.toggle('light', isLight);
+  document.getElementById('themeToggle').textContent = isLight ? '暗色' : '亮色';
+}
+
+window.toggleTheme = () => {
+  const isLight = !document.body.classList.contains('light');
+  applyTheme(isLight);
+  localStorage.setItem('artale_theme', isLight ? 'light' : 'dark');
+};
+
+// 初始化主題
+applyTheme(localStorage.getItem('artale_theme') === 'light');
 
 window.copyLink = () => {
   navigator.clipboard.writeText(window.location.href).then(() => {

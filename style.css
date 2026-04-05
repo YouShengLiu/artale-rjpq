@@ -530,9 +530,8 @@ h1 span {
   flex: 1;
   font-size: 15px;
   color: var(--text);
-  overflow: hidden;
+  overflow-x: auto;
   white-space: nowrap;
-  text-overflow: ellipsis;
   line-height: 1;
 }
 

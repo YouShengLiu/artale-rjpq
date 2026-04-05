@@ -505,9 +505,75 @@
   }
 
   .hidden { display: none !important; }
+
+  /* Sequence bar */
+  .seq-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: rgba(17, 21, 32, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .seq-room {
+    font-size: 15px;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+  .seq-room.room-a { color: var(--room-a); }
+  .seq-room.room-b { color: var(--room-b); }
+  .seq-room.room-c { color: var(--room-c); }
+  .seq-room.room-d { color: var(--room-d); }
+
+  .seq-content {
+    flex: 1;
+    font-size: 15px;
+    color: var(--text);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    line-height: 1;
+  }
+
+  .seq-latest {
+    font-size: 19px;
+    font-weight: 900;
+    color: var(--correct);
+  }
+
+  .seq-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .seq-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  .container.has-seq-bar { padding-top: 60px; }
 </style>
 </head>
 <body>
+
+<div class="seq-bar hidden" id="seqBar">
+  <span class="seq-room" id="seqRoom"></span>
+  <span class="seq-content" id="seqContent"></span>
+  <button class="seq-toggle" id="seqToggle" onclick="toggleSeq()">收起</button>
+</div>
 
 <div class="container">
   <header>
@@ -772,6 +838,51 @@ window.selectRoom = async (room) => {
   renderGrid();
 };
 
+let seqCollapsed = false;
+
+window.toggleSeq = () => {
+  seqCollapsed = !seqCollapsed;
+  document.getElementById('seqContent').style.display = seqCollapsed ? 'none' : '';
+  document.getElementById('seqToggle').textContent = seqCollapsed ? '展開' : '收起';
+};
+
+function updateSequenceBar() {
+  const bar = document.getElementById('seqBar');
+  const container = document.querySelector('.container');
+  if (!myRoom) {
+    bar.classList.add('hidden');
+    container.classList.remove('has-seq-bar');
+    return;
+  }
+
+  const roomColors = { a: 'room-a', b: 'room-b', c: 'room-c', d: 'room-d' };
+  const seqRoom = document.getElementById('seqRoom');
+  seqRoom.className = `seq-room ${roomColors[myRoom]}`;
+  seqRoom.textContent = ROOM_NAMES[myRoom];
+
+  const parts = [];
+  for (let f = 1; f <= FLOORS; f++) {
+    const val = gameState[f] && gameState[f][myRoom];
+    if (val !== null && val !== undefined) parts.push(val);
+  }
+
+  const seqContent = document.getElementById('seqContent');
+  if (parts.length === 0) {
+    seqContent.innerHTML = '<span style="color:var(--muted)">尚未選擇踏板</span>';
+  } else {
+    const sep = '<span style="color:var(--muted)"> · </span>';
+    const html = parts.map((v, i) =>
+      i === parts.length - 1
+        ? `<span class="seq-latest">${v}</span>`
+        : `${v}`
+    ).join(sep);
+    seqContent.innerHTML = html;
+  }
+
+  bar.classList.remove('hidden');
+  container.classList.add('has-seq-bar');
+}
+
 function renderGrid() {
   const grid = document.getElementById('floorGrid');
   let html = '';
@@ -818,6 +929,7 @@ function renderGrid() {
     html += `</div>`;
   }
   grid.innerHTML = html;
+  updateSequenceBar();
 }
 
 window.setPlatform = async (floor, room, value) => {

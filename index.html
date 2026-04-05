@@ -505,9 +505,148 @@
   }
 
   .hidden { display: none !important; }
+
+  /* Sequence bar */
+  .seq-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: rgba(17, 21, 32, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .seq-room {
+    font-size: 15px;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+  .seq-room.room-a { color: var(--room-a); }
+  .seq-room.room-b { color: var(--room-b); }
+  .seq-room.room-c { color: var(--room-c); }
+  .seq-room.room-d { color: var(--room-d); }
+
+  .seq-content {
+    flex: 1;
+    font-size: 15px;
+    color: var(--text);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    line-height: 1;
+  }
+
+  .seq-latest {
+    font-size: 19px;
+    font-weight: 900;
+    color: var(--correct);
+  }
+
+  .seq-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .seq-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  .container.has-seq-bar { padding-top: 60px; }
+
+  /* Light theme */
+  body.light {
+    --bg: #f0f4fb;
+    --surface: #ffffff;
+    --border: #ccd6ee;
+    --accent: #2b6de0;
+    --accent2: #b07800;
+    --text: #1a2035;
+    --muted: #7a8aaa;
+    --room-a: #1e5fd4;
+    --room-b: #a06800;
+    --room-c: #0a8f50;
+    --room-d: #c0184e;
+    --correct: #0a8f50;
+    --taken: #c0184e;
+  }
+
+  body.light::before {
+    background-image:
+      linear-gradient(rgba(30,95,212,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,95,212,0.06) 1px, transparent 1px);
+  }
+
+  body.light .seq-bar {
+    background: rgba(240, 244, 251, 0.95);
+  }
+
+  body.light .overlay {
+    background: rgba(220, 228, 245, 0.92);
+  }
+
+  body.light .platform-num-btn.is-correct {
+    background: rgba(10,143,80,0.12);
+  }
+
+  body.light .platform-num-btn.is-taken {
+    background: rgba(192,24,78,0.08);
+    border-color: rgba(192,24,78,0.3);
+  }
+
+  /* Theme toggle button */
+  .theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Copy link button in status bar */
+  .copy-link-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .copy-link-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-link-btn.copied { border-color: var(--correct); color: var(--correct); }
 </style>
 </head>
 <body>
+
+<div class="seq-bar hidden" id="seqBar">
+  <span class="seq-room" id="seqRoom"></span>
+  <span class="seq-content" id="seqContent"></span>
+  <button class="seq-toggle" id="seqToggle" onclick="toggleSeq()">收起</button>
+</div>
 
 <div class="container">
   <header>
@@ -522,7 +661,9 @@
       <span id="statusText">連線中...</span>
     </div>
     <div class="status-right">
+      <button class="copy-link-btn hidden" id="copyLinkBtn" onclick="copyLink()">⎘ 複製連結</button>
       <span id="roomCount" style="color:var(--muted)">0/4 房間</span>
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">亮色</button>
     </div>
   </div>
 
@@ -606,6 +747,42 @@ let occupiedRooms = {}; // { a: true, b: true, ... }
 let sessionId = null;
 let currentSessionRef = null;
 
+function getSessionFromUrl() {
+  return new URLSearchParams(window.location.search).get('s');
+}
+
+function setSessionInUrl(id) {
+  const url = new URL(window.location);
+  url.searchParams.set('s', id);
+  window.history.replaceState({}, '', url);
+}
+
+function applyTheme(isLight) {
+  document.body.classList.toggle('light', isLight);
+  document.getElementById('themeToggle').textContent = isLight ? '暗色' : '亮色';
+}
+
+window.toggleTheme = () => {
+  const isLight = !document.body.classList.contains('light');
+  applyTheme(isLight);
+  localStorage.setItem('artale_theme', isLight ? 'light' : 'dark');
+};
+
+// 初始化主題
+applyTheme(localStorage.getItem('artale_theme') === 'light');
+
+window.copyLink = () => {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const btn = document.getElementById('copyLinkBtn');
+    btn.textContent = '✓ 已複製';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '⎘ 複製連結';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+};
+
 function initEmptyState() {
   gameState = {};
   occupiedRooms = {};
@@ -632,6 +809,7 @@ function subscribeSession(id) {
   if (currentSessionRef) off(currentSessionRef);
 
   sessionId = id;
+  setSessionInUrl(id);
   currentSessionRef = ref(db, `sessions/${sessionId}`);
 
   document.getElementById('statusDot').classList.remove('online');
@@ -650,6 +828,7 @@ function subscribeSession(id) {
 
     document.getElementById('statusDot').classList.add('online');
     document.getElementById('statusText').textContent = `已連線 · 場次 ${sessionId}`;
+    document.getElementById('copyLinkBtn').classList.remove('hidden');
     renderGrid();
     updateStatus(data);
   }, (err) => {
@@ -670,12 +849,27 @@ function generateId() {
 const _savedAccess = localStorage.getItem('artale_access');
 const _savedSession = localStorage.getItem('artale_session');
 const _savedRoom = localStorage.getItem('artale_room');
+const _urlSession = getSessionFromUrl();
 
 if (!_savedAccess) {
   // 未驗證：只顯示存取碼 overlay
   initEmptyState();
-  subscribeSession(generateId());
+  subscribeSession(_urlSession || generateId());
   document.getElementById('roomOverlay').classList.add('hidden');
+} else if (_urlSession && _urlSession === _savedSession && _savedRoom) {
+  // 已驗證 + URL session 與上次相同：自動重連原房間
+  myRoom = _savedRoom;
+  initEmptyState();
+  subscribeSession(_urlSession);
+  const _roomRef = ref(db, `sessions/${_urlSession}/rooms/${_savedRoom}`);
+  set(_roomRef, true).then(() => onDisconnect(_roomRef).remove());
+  document.getElementById('accessOverlay').classList.add('hidden');
+  document.getElementById('roomOverlay').classList.add('hidden');
+} else if (_urlSession) {
+  // 已驗證 + 開啟了別人分享的連結：加入該 session，重新選房
+  initEmptyState();
+  subscribeSession(_urlSession);
+  document.getElementById('accessOverlay').classList.add('hidden');
 } else if (_savedSession && _savedRoom) {
   // 已驗證 + 有上次的 session/room：自動重連
   myRoom = _savedRoom;
@@ -772,6 +966,51 @@ window.selectRoom = async (room) => {
   renderGrid();
 };
 
+let seqCollapsed = false;
+
+window.toggleSeq = () => {
+  seqCollapsed = !seqCollapsed;
+  document.getElementById('seqContent').style.display = seqCollapsed ? 'none' : '';
+  document.getElementById('seqToggle').textContent = seqCollapsed ? '展開' : '收起';
+};
+
+function updateSequenceBar() {
+  const bar = document.getElementById('seqBar');
+  const container = document.querySelector('.container');
+  if (!myRoom) {
+    bar.classList.add('hidden');
+    container.classList.remove('has-seq-bar');
+    return;
+  }
+
+  const roomColors = { a: 'room-a', b: 'room-b', c: 'room-c', d: 'room-d' };
+  const seqRoom = document.getElementById('seqRoom');
+  seqRoom.className = `seq-room ${roomColors[myRoom]}`;
+  seqRoom.textContent = ROOM_NAMES[myRoom];
+
+  const parts = [];
+  for (let f = 1; f <= FLOORS; f++) {
+    const val = gameState[f] && gameState[f][myRoom];
+    if (val !== null && val !== undefined) parts.push(val);
+  }
+
+  const seqContent = document.getElementById('seqContent');
+  if (parts.length === 0) {
+    seqContent.innerHTML = '<span style="color:var(--muted)">尚未選擇踏板</span>';
+  } else {
+    const sep = '<span style="color:var(--muted)"> · </span>';
+    const html = parts.map((v, i) =>
+      i === parts.length - 1
+        ? `<span class="seq-latest">${v}</span>`
+        : `${v}`
+    ).join(sep);
+    seqContent.innerHTML = html;
+  }
+
+  bar.classList.remove('hidden');
+  container.classList.add('has-seq-bar');
+}
+
 function renderGrid() {
   const grid = document.getElementById('floorGrid');
   let html = '';
@@ -818,6 +1057,7 @@ function renderGrid() {
     html += `</div>`;
   }
   grid.innerHTML = html;
+  updateSequenceBar();
 }
 
 window.setPlatform = async (floor, room, value) => {

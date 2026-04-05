@@ -97,13 +97,8 @@ function initEmptyState() {
 }
 
 function updateStatus(data) {
-  const activeRooms = new Set();
-  if (data && data.floors) {
-    Object.values(data.floors).forEach(f => {
-      ROOMS.forEach(r => { if (f[r] !== null) activeRooms.add(r); });
-    });
-  }
-  document.getElementById('roomCount').textContent = `${activeRooms.size}/4 房間`;
+  const count = data && data.rooms ? Object.keys(data.rooms).length : 0;
+  document.getElementById('roomCount').textContent = `${count}/4 房間`;
 }
 
 function updateRoomButtons() {

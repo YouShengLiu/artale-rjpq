@@ -61,6 +61,21 @@
   </div>
 </div>
 
+<!-- Nickname overlay -->
+<div class="overlay hidden" id="nicknameOverlay">
+  <div class="overlay-box">
+    <h2>設定暱稱</h2>
+    <p id="nicknameRoomLabel"></p>
+    <div class="join-row">
+      <input type="text" id="nicknameInput" class="join-input nickname-input" placeholder="輸入暱稱（選填）" maxlength="10" />
+    </div>
+    <div class="nickname-actions">
+      <button class="join-btn" onclick="confirmNickname()">確認</button>
+      <button class="btn-skip" onclick="skipNickname()">略過</button>
+    </div>
+  </div>
+</div>
+
 <!-- Room select overlay -->
 <div class="overlay" id="roomOverlay">
   <div class="overlay-box">

@@ -631,3 +631,36 @@ body.light .platform-num-btn.is-taken {
 }
 .copy-link-btn:hover { border-color: var(--accent); color: var(--accent); }
 .copy-link-btn.copied { border-color: var(--correct); color: var(--correct); }
+
+/* Nickname overlay */
+.nickname-input {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 16px;
+}
+
+.nickname-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.nickname-actions .join-btn {
+  flex: 1;
+}
+
+.btn-skip {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+.btn-skip:hover { border-color: var(--muted); color: var(--text); }

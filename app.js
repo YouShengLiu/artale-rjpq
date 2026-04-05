@@ -19,6 +19,7 @@ const ROOM_NAMES = { a: '甲', b: '乙', c: '丙', d: '丁' };
 const FLOORS = 10;
 
 let myRoom = null;
+let pendingRoom = null;
 let gameState = {};
 let occupiedRooms = {};
 let sessionId = null;
@@ -38,6 +39,14 @@ function setSessionInUrl(id) {
 
 function generateId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+// ── Nickname helpers ─────────────────────────────────────────────────────────
+
+// Returns the display name for a room (nickname if set, else 甲乙丙丁)
+function getRoomDisplayName(r) {
+  const val = occupiedRooms[r];
+  return (val && typeof val === 'string') ? val : ROOM_NAMES[r];
 }
 
 // ── Theme ────────────────────────────────────────────────────────────────────
@@ -101,13 +110,23 @@ function updateRoomButtons() {
   ROOMS.forEach(r => {
     const btn = document.querySelector(`.overlay-room-btn.btn-${r}`);
     if (!btn) return;
+    const sub = btn.querySelector('.sub');
     if (occupiedRooms[r] && r !== myRoom) {
       btn.classList.add('disabled');
       btn.title = '此房間已有人進入';
+      if (sub) sub.textContent = getRoomDisplayName(r);
     } else {
       btn.classList.remove('disabled');
       btn.title = '';
+      if (sub) sub.textContent = `ROOM ${r.toUpperCase()}`;
     }
+  });
+}
+
+function updateFloorHeader() {
+  ROOMS.forEach(r => {
+    const cell = document.querySelector(`.fh-${r}`);
+    if (cell) cell.textContent = getRoomDisplayName(r);
   });
 }
 
@@ -150,6 +169,7 @@ function initSession() {
   const savedAccess = localStorage.getItem('artale_access');
   const savedSession = localStorage.getItem('artale_session');
   const savedRoom = localStorage.getItem('artale_room');
+  const savedNickname = localStorage.getItem('artale_nickname');
   const urlSession = getSessionFromUrl();
 
   if (!savedAccess) {
@@ -163,8 +183,9 @@ function initSession() {
     myRoom = savedRoom;
     initEmptyState();
     subscribeSession(urlSession);
+    const name = savedNickname || ROOM_NAMES[savedRoom];
     const roomRef = ref(db, `sessions/${urlSession}/rooms/${savedRoom}`);
-    set(roomRef, true).then(() => onDisconnect(roomRef).remove());
+    set(roomRef, name).then(() => onDisconnect(roomRef).remove());
     document.getElementById('accessOverlay').classList.add('hidden');
     document.getElementById('roomOverlay').classList.add('hidden');
     return;
@@ -181,8 +202,9 @@ function initSession() {
     myRoom = savedRoom;
     initEmptyState();
     subscribeSession(savedSession);
+    const name = savedNickname || ROOM_NAMES[savedRoom];
     const roomRef = ref(db, `sessions/${savedSession}/rooms/${savedRoom}`);
-    set(roomRef, true).then(() => onDisconnect(roomRef).remove());
+    set(roomRef, name).then(() => onDisconnect(roomRef).remove());
     document.getElementById('accessOverlay').classList.add('hidden');
     document.getElementById('roomOverlay').classList.add('hidden');
     return;
@@ -217,22 +239,49 @@ document.getElementById('accessInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') verifyAccess();
 });
 
-// ── Room / join ──────────────────────────────────────────────────────────────
+// ── Room selection ───────────────────────────────────────────────────────────
 
-window.selectRoom = async (room) => {
+window.selectRoom = (room) => {
   if (occupiedRooms[room] && room !== myRoom) return;
+  pendingRoom = room;
 
+  document.getElementById('nicknameRoomLabel').innerHTML =
+    `為「${ROOM_NAMES[room]}」設定暱稱<br>可略過，預設使用房間名稱`;
+  document.getElementById('nicknameInput').value = '';
+  document.getElementById('roomOverlay').classList.add('hidden');
+  document.getElementById('nicknameOverlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('nicknameInput').focus(), 50);
+};
+
+window.confirmNickname = () => {
+  const raw = document.getElementById('nicknameInput').value.trim();
+  const name = raw || ROOM_NAMES[pendingRoom];
+  finalizeRoomSelection(pendingRoom, name);
+};
+
+window.skipNickname = () => {
+  finalizeRoomSelection(pendingRoom, ROOM_NAMES[pendingRoom]);
+};
+
+document.getElementById('nicknameInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') confirmNickname();
+});
+
+async function finalizeRoomSelection(room, name) {
   myRoom = room;
   localStorage.setItem('artale_session', sessionId);
   localStorage.setItem('artale_room', room);
+  localStorage.setItem('artale_nickname', name);
 
   const roomRef = ref(db, `sessions/${sessionId}/rooms/${room}`);
-  await set(roomRef, true);
+  await set(roomRef, name);
   onDisconnect(roomRef).remove();
 
-  document.getElementById('roomOverlay').classList.add('hidden');
+  document.getElementById('nicknameOverlay').classList.add('hidden');
   renderGrid();
-};
+}
+
+// ── Join session ─────────────────────────────────────────────────────────────
 
 window.joinSession = () => {
   const input = document.getElementById('joinInput');
@@ -250,6 +299,7 @@ window.joinSession = () => {
   myRoom = null;
   localStorage.removeItem('artale_session');
   localStorage.removeItem('artale_room');
+  localStorage.removeItem('artale_nickname');
   initEmptyState();
   renderGrid();
   subscribeSession(code);
@@ -281,7 +331,7 @@ function updateSequenceBar() {
   const roomColors = { a: 'room-a', b: 'room-b', c: 'room-c', d: 'room-d' };
   const seqRoom = document.getElementById('seqRoom');
   seqRoom.className = `seq-room ${roomColors[myRoom]}`;
-  seqRoom.textContent = ROOM_NAMES[myRoom];
+  seqRoom.textContent = getRoomDisplayName(myRoom);
 
   const parts = [];
   for (let f = 1; f <= FLOORS; f++) {
@@ -306,6 +356,8 @@ function updateSequenceBar() {
 // ── Grid render ──────────────────────────────────────────────────────────────
 
 function renderGrid() {
+  updateFloorHeader();
+
   const grid = document.getElementById('floorGrid');
   let html = '';
   for (let f = FLOORS; f >= 1; f--) {
@@ -323,7 +375,7 @@ function renderGrid() {
 
       if (isMe) {
         html += `<div class="platform-cell ${colorClass} mine">`;
-        html += `<span class="room-tag">${ROOM_NAMES[r]}</span>`;
+        html += `<span class="room-tag">${getRoomDisplayName(r)}</span>`;
         html += `<div class="platform-btns">`;
         for (let n = 1; n <= 4; n++) {
           const isCorrect = (val === n);
@@ -342,7 +394,7 @@ function renderGrid() {
           dispText = val;
         }
         html += `<div class="platform-cell ${colorClass}">`;
-        html += `<span class="room-tag">${ROOM_NAMES[r]}</span>`;
+        html += `<span class="room-tag">${getRoomDisplayName(r)}</span>`;
         html += `<div class="other-display ${dispClass}">${dispText}</div>`;
         html += `</div>`;
       }

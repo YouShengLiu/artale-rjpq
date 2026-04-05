@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue, off, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB-h1O-c5iNOzBNoBW9R-YZVnWu7OgwH3E",
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
 
 const ROOMS = ['a', 'b', 'c', 'd'];
 const ROOM_NAMES = { a: '甲', b: '乙', c: '丙', d: '丁' };
@@ -210,7 +212,7 @@ function initSession() {
   document.getElementById('accessOverlay').classList.add('hidden');
 }
 
-initSession();
+signInAnonymously(auth).then(() => initSession());
 
 // ── Access code ──────────────────────────────────────────────────────────────
 

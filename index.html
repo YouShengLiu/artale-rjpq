@@ -565,6 +565,23 @@
   .seq-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
   .container.has-seq-bar { padding-top: 60px; }
+
+  /* Copy link button in status bar */
+  .copy-link-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .copy-link-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-link-btn.copied { border-color: var(--correct); color: var(--correct); }
 </style>
 </head>
 <body>
@@ -588,6 +605,7 @@
       <span id="statusText">連線中...</span>
     </div>
     <div class="status-right">
+      <button class="copy-link-btn hidden" id="copyLinkBtn" onclick="copyLink()">⎘ 複製連結</button>
       <span id="roomCount" style="color:var(--muted)">0/4 房間</span>
     </div>
   </div>
@@ -672,6 +690,28 @@ let occupiedRooms = {}; // { a: true, b: true, ... }
 let sessionId = null;
 let currentSessionRef = null;
 
+function getSessionFromUrl() {
+  return new URLSearchParams(window.location.search).get('s');
+}
+
+function setSessionInUrl(id) {
+  const url = new URL(window.location);
+  url.searchParams.set('s', id);
+  window.history.replaceState({}, '', url);
+}
+
+window.copyLink = () => {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const btn = document.getElementById('copyLinkBtn');
+    btn.textContent = '✓ 已複製';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '⎘ 複製連結';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+};
+
 function initEmptyState() {
   gameState = {};
   occupiedRooms = {};
@@ -698,6 +738,7 @@ function subscribeSession(id) {
   if (currentSessionRef) off(currentSessionRef);
 
   sessionId = id;
+  setSessionInUrl(id);
   currentSessionRef = ref(db, `sessions/${sessionId}`);
 
   document.getElementById('statusDot').classList.remove('online');
@@ -716,6 +757,7 @@ function subscribeSession(id) {
 
     document.getElementById('statusDot').classList.add('online');
     document.getElementById('statusText').textContent = `已連線 · 場次 ${sessionId}`;
+    document.getElementById('copyLinkBtn').classList.remove('hidden');
     renderGrid();
     updateStatus(data);
   }, (err) => {
@@ -736,12 +778,27 @@ function generateId() {
 const _savedAccess = localStorage.getItem('artale_access');
 const _savedSession = localStorage.getItem('artale_session');
 const _savedRoom = localStorage.getItem('artale_room');
+const _urlSession = getSessionFromUrl();
 
 if (!_savedAccess) {
   // 未驗證：只顯示存取碼 overlay
   initEmptyState();
-  subscribeSession(generateId());
+  subscribeSession(_urlSession || generateId());
   document.getElementById('roomOverlay').classList.add('hidden');
+} else if (_urlSession && _urlSession === _savedSession && _savedRoom) {
+  // 已驗證 + URL session 與上次相同：自動重連原房間
+  myRoom = _savedRoom;
+  initEmptyState();
+  subscribeSession(_urlSession);
+  const _roomRef = ref(db, `sessions/${_urlSession}/rooms/${_savedRoom}`);
+  set(_roomRef, true).then(() => onDisconnect(_roomRef).remove());
+  document.getElementById('accessOverlay').classList.add('hidden');
+  document.getElementById('roomOverlay').classList.add('hidden');
+} else if (_urlSession) {
+  // 已驗證 + 開啟了別人分享的連結：加入該 session，重新選房
+  initEmptyState();
+  subscribeSession(_urlSession);
+  document.getElementById('accessOverlay').classList.add('hidden');
 } else if (_savedSession && _savedRoom) {
   // 已驗證 + 有上次的 session/room：自動重連
   myRoom = _savedRoom;

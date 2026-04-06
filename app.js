@@ -371,14 +371,16 @@ function renderGrid() {
       const colorClass = `cell-${r}`;
 
       if (isMe) {
-        html += `<div class="platform-cell ${colorClass} mine">`;
+        const prevVal = f > 1 && gameState[f - 1] && gameState[f - 1][r];
+        const locked = f > 1 && (prevVal === null || prevVal === undefined);
+        html += `<div class="platform-cell ${colorClass} mine${locked ? ' floor-locked' : ''}">`;
         html += `<span class="room-tag">${getRoomDisplayName(r)}</span>`;
         html += `<div class="platform-btns">`;
         for (let n = 1; n <= 4; n++) {
           const isCorrect = (val === n);
           const isTaken = !isCorrect && taken.has(n);
           const cls = isCorrect ? 'is-correct' : isTaken ? 'is-taken' : '';
-          const disabled = isTaken ? 'disabled' : '';
+          const disabled = (locked || isTaken) ? 'disabled' : '';
           html += `<button class="platform-num-btn ${cls}" ${disabled}
             onclick="setPlatform(${f},'${r}',${isCorrect ? 'null' : n})">${n}</button>`;
         }
@@ -407,6 +409,10 @@ function renderGrid() {
 
 window.setPlatform = async (floor, room, value) => {
   if (!myRoom || room !== myRoom) return;
+  if (floor > 1) {
+    const prevVal = gameState[floor - 1] && gameState[floor - 1][room];
+    if (prevVal === null || prevVal === undefined) return;
+  }
   await set(ref(db, `sessions/${sessionId}/floors/${floor}/${room}`), value);
 };
 

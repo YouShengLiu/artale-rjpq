@@ -259,6 +259,19 @@ h1 span {
   cursor: not-allowed;
 }
 
+.floor-locked .platform-num-btn:disabled {
+  opacity: 0.15;
+}
+
+.floor-locked .platform-btns::after {
+  content: '請先填寫上一層';
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 2px;
+}
+
 /* Room color accents */
 .cell-a .room-tag { color: var(--room-a); }
 .cell-b .room-tag { color: var(--room-b); }

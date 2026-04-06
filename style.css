@@ -263,13 +263,9 @@ h1 span {
   opacity: 0.15;
 }
 
-.floor-locked .platform-btns::after {
-  content: '請先填寫上一層';
-  display: block;
-  font-size: 10px;
-  color: var(--muted);
-  text-align: center;
-  margin-top: 2px;
+.floor-locked {
+  border-color: rgba(247, 79, 79, 0.6) !important;
+  background: rgba(247, 79, 79, 0.04) !important;
 }
 
 /* Room color accents */

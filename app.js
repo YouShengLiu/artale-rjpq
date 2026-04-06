@@ -143,6 +143,14 @@ function subscribeSession(id) {
     const data = snapshot.val();
     gameState = (data && data.floors) ? data.floors : (() => { initEmptyState(); return gameState; })();
     occupiedRooms = (data && data.rooms) ? data.rooms : {};
+
+    // Re-register presence if our room entry was removed (e.g. after brief disconnect)
+    if (myRoom && !occupiedRooms[myRoom]) {
+      const name = localStorage.getItem('artale_nickname') || ROOM_NAMES[myRoom];
+      const roomRef = ref(db, `sessions/${sessionId}/rooms/${myRoom}`);
+      set(roomRef, name).then(() => onDisconnect(roomRef).remove());
+    }
+
     updateRoomButtons();
 
     document.getElementById('statusDot').classList.add('online');
@@ -212,7 +220,17 @@ function initSession() {
   document.getElementById('accessOverlay').classList.add('hidden');
 }
 
-signInAnonymously(auth).then(() => initSession());
+signInAnonymously(auth).then(() => {
+  initSession();
+
+  // Re-register room presence on reconnect (onDisconnect fires on brief disconnects)
+  onValue(ref(db, '.info/connected'), (snap) => {
+    if (!snap.val() || !myRoom || !sessionId) return;
+    const name = localStorage.getItem('artale_nickname') || ROOM_NAMES[myRoom];
+    const roomRef = ref(db, `sessions/${sessionId}/rooms/${myRoom}`);
+    set(roomRef, name).then(() => onDisconnect(roomRef).remove());
+  });
+});
 
 // ── Access code ──────────────────────────────────────────────────────────────
 
